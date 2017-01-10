@@ -38,10 +38,10 @@ struct SearchResult
 
 extern int main(int argc, char **argv);
 char *strlwr(char *);
-void setupGadgets();
+struct Node *GetListIndex(struct List *list, int index);
+void SetupGadgets();
 void DoSampleSearch(struct List *, UBYTE *, UBYTE *);
-//void processGadgetUp(struct Gadget *);
-void processGadgetUp(struct IntuiMessage *);
+void Event_ProcessGadgetUp(struct IntuiMessage *);
 
 #endif
 

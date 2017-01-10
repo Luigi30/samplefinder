@@ -139,13 +139,15 @@ void DoSampleSearch(struct List *resultsList, UBYTE *dirName, UBYTE *searchStrin
         printf("first examined object is '%s'. directory flag is %x\n", fib->fib_FileName, fib->fib_DirEntryType);
 
         while(ExNext(dirLock, fib)){
-            //printf("Searching for the string '%s' in the string '%s'\n", strlwr(searchString), strlwr(fib->fib_FileName));
             if(strstr(strlwr(fib->fib_FileName), strlwr(searchString)) != NULL){
+
+                //Concatenate the path together
                 char *fullPath = AllocMem(128, MEMF_PUBLIC|MEMF_CLEAR);
                 strcat(fullPath, dirName);
                 strcat(fullPath, "/");
                 strcat(fullPath, fib->fib_FileName);
 
+                //Instantiate a SearchResult and fill in the details.
                 struct SearchResult *result = AllocVec(sizeof(struct SearchResult), MEMF_CLEAR);
                 result->sr_Node.ln_Name = fullPath;
                 result->sr_Size = fib->fib_Size;
@@ -155,33 +157,29 @@ void DoSampleSearch(struct List *resultsList, UBYTE *dirName, UBYTE *searchStrin
                 BYTE header[4];
                 Read(file, header, 4);
 
+                //"FORM" = IFF header
                 if(header[0] == 'F' && header[1] == 'O' && header[2] == 'R' && header[3] == 'M')
                     strcpy(&result->sr_Format, "8SVX");
-                    //result->sr_Format = (ULONG)"8SVX";
                 else
                     strcpy(&result->sr_Format, "PCM ");
-                    //result->sr_Format = (ULONG)"PCM ";
                 Close(file);
 
                 //ignore the warning here, AddHead accepts any struct that starts with a Node
                 AddHead(resultsList, result);
-                printf("Added '%s' to resultsList\n", fullPath);
+                //printf("Added '%s' to resultsList\n", fullPath);
             }
         }
     }
 
-    if(BADDR(dirLock) != NULL) UnLock(dirLock); //Done, so release our read lock
-    if(fib != NULL) FreeDosObject(DOS_FIB, fib);
+    if(BADDR(dirLock) != NULL) UnLock(dirLock); //Done, so release our read lock...
+    if(fib != NULL) FreeDosObject(DOS_FIB, fib);//...and delete the fib.
 }
 
-//void processGadgetUp(struct Gadget *gadget){
-void processGadgetUp(struct IntuiMessage *msg) {
+void Event_ProcessGadgetUp(struct IntuiMessage *msg) {
     struct FileRequester *requester;
-    //struct SearchResult *selectedItem = (struct SearchResult *)GetListIndex(&queryResultsList, msg->Code);
     BOOL result;
     char sizeStr[] = "12345";
     char formatStr[5] = "????\0";
-    printf("selected sound is %s\n", selectedItem->sr_Node.ln_Name);
 
     struct Gadget *gadget = (struct Gadget *)msg->IAddress;
     printf("IDCMP_GADGETUP: Gadget ID is %d\n", gadget->GadgetID);
@@ -208,7 +206,8 @@ void processGadgetUp(struct IntuiMessage *msg) {
             }
             break;
         case GAD_QUERYDOSEARCH:
-            //find every file in the folder and add them to the listview
+            //Find every file in the folder and add them to the listview.
+
             //detach the list before we update it
             GT_SetGadgetAttrs(gadgets[GAD_QUERYRESULTSLISTVIEW], mainWindow, NULL, GTLV_Labels, ~0, TAG_DONE);
 
@@ -228,12 +227,12 @@ void processGadgetUp(struct IntuiMessage *msg) {
             PB_PlaySound(mainWindow, selectedItem->sr_Node.ln_Name, NOTE_C3);
             break;
         case GAD_QUERYRESULTSLISTVIEW:
+            //The selection changed, update the data structures and gadgets.
             selectedItem = (struct SearchResult *)GetListIndex(&queryResultsList, msg->Code);
             sprintf(sizeStr, "%d", selectedItem->sr_Size);
             sprintf(formatStr, "%s", selectedItem->sr_Format);
             GT_SetGadgetAttrs(gadgets[GAD_LBL_FILESIZE], mainWindow, NULL, GTTX_Text, sizeStr, TAG_DONE);
             GT_SetGadgetAttrs(gadgets[GAD_LBL_FILEFORMAT], mainWindow, NULL, GTTX_Text, formatStr, TAG_DONE);
-            //printf("selected item %d, length is %d and format is %x\n", msg->Code, selectedItem->sr_Size, selectedItem->sr_Format);
             break;
         default:
             break;
@@ -263,8 +262,7 @@ void MainWindowEventLoop(struct Window *window){
                     CLOSE_WINDOW = TRUE;
                     break;
                 case IDCMP_GADGETUP: //A button was clicked.
-                    //processGadgetUp((struct Gadget *)msg->IAddress);
-                    processGadgetUp(msg);
+                    Event_ProcessGadgetUp(msg);
                     break;
                 default:
                     //printf("Unhandled msgClass: %lx\n", msgClass);
